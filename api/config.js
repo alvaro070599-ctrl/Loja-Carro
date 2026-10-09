@@ -1,5 +1,3 @@
-// Endpoint público apenas para configurações que podem ser expostas ao navegador.
-// Nunca retorne secrets, senhas ou a chave service_role por este endpoint.
 module.exports = function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
