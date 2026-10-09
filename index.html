@@ -121,22 +121,32 @@
     $('clearFilters').onclick=()=>{$('search').value='';$('brandFilter').value='';$('yearFilter').value='';$('priceFilter').value='';renderCars()};
     $('yearNow').textContent=new Date().getFullYear();setWhatsApp();applyBranding();
     function adminShell(){return '<div class="eyebrow">Área restrita</div><h2 style="margin-top:12px">Administração da loja</h2><p class="modal-sub">Gerencie o estoque de veículos da '+esc(storeName)+'.</p>'}
+    async function apiRequest(url, options={}){
+      const response=await fetch(url,{credentials:'same-origin',...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+      let body={};try{body=await response.json()}catch(_){}
+      if(!response.ok)throw new Error(body.error||'Erro na solicitação.');
+      return body;
+    }
     async function openAdmin(){
       $('adminModal').classList.add('show');
-      if(!db){$('adminContent').innerHTML=adminShell()+'<div class="notice"><strong>Banco de dados ainda não conectado.</strong><br>Configure na Vercel as variáveis SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY (ou SUPABASE_ANON_KEY) e execute o arquivo supabase/schema.sql no projeto Supabase. Depois faça um novo deploy. Nenhum veículo será salvo até a conexão estar configurada.</div>';return}
-      const {data}=await db.auth.getSession();user=data.session?.user||null;
-      if(!user){$('adminContent').innerHTML=adminShell()+'<form id="loginForm"><div class="field" style="margin-bottom:12px"><label>E-MAIL ADMINISTRADOR</label><input type="email" id="loginEmail" required autocomplete="username" placeholder="seuemail@exemplo.com"></div><div class="field" style="margin-bottom:18px"><label>SENHA</label><input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Sua senha"></div><button class="btn" style="width:100%">Entrar no painel</button></form><p style="font-size:11px;color:var(--muted);margin-top:14px">A conta de administrador deve ser criada no painel de autenticação do Supabase.</p>'; $('loginForm').onsubmit=async e=>{e.preventDefault();const {error}=await db.auth.signInWithPassword({email:$('loginEmail').value,password:$('loginPassword').value});if(error){toast('Não foi possível entrar: '+error.message);return}user=(await db.auth.getSession()).data.session?.user;renderAdmin();};return}
-      renderAdmin();
+      if(!db){$('adminContent').innerHTML=adminShell()+'<div class="notice"><strong>Banco de dados ainda não conectado.</strong><br>Configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY na Vercel. O administrador por senha é configurado separadamente pelas variáveis privadas da Vercel.</div>';return}
+      try{const session=await apiRequest('/api/admin/session');user=session.authenticated?{email:'admin'}:null;}catch(_){user=null;}
+      if(!user){
+        $('adminContent').innerHTML=adminShell()+'<form id="loginForm"><div class="field" style="margin-bottom:18px"><label>SENHA DO ADMINISTRADOR</label><input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Digite a senha do painel" autofocus></div><button class="btn" style="width:100%">Entrar no painel</button><p id="loginError" style="font-size:12px;color:#b42318;margin-top:10px"></p></form>';
+        $('loginForm').onsubmit=async e=>{e.preventDefault();const btn=e.currentTarget.querySelector('button');btn.disabled=true;try{await apiRequest('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('loginPassword').value})});user={email:'admin'};await renderAdmin()}catch(err){$('loginError').textContent=err.message;$('loginPassword').value='';$('loginPassword').focus()}finally{btn.disabled=false}};
+        return;
+      }
+      await renderAdmin();
     }
     async function renderAdmin(){
-      const {data,error}=await db.from('vehicles').select('*').order('created_at',{ascending:false});
-      if(error){$('adminContent').innerHTML=adminShell()+'<div class="notice">Não foi possível acessar os veículos. Confere se o arquivo supabase/schema.sql foi executado no projeto Supabase.</div><button class="btn" id="adminLogout">Sair</button>'; $('adminLogout').onclick=logout;return}
-      const all=data||[];
-      $('adminContent').innerHTML=adminShell()+'<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:12px;color:var(--muted)">Logado como '+esc(user.email)+' • '+all.length+' veículos cadastrados</span><div style="display:flex;gap:8px"><button class="btn" id="newVehicle">+ Novo veículo</button><button class="btn ghost" id="adminLogout">Sair</button></div></div><div id="vehicleFormWrap"></div><div class="admin-list">'+(all.length?all.map(c=>'<div class="admin-row"><img src="'+esc(photo(c))+'" alt=""><div class="grow"><strong>'+esc(c.brand)+' '+esc(c.model)+' • '+esc(c.year)+'</strong><small>'+fmt(c.price)+' • '+(c.active?'Publicado':'Oculto')+'</small></div><button data-edit="'+esc(c.id)+'">Editar</button><button data-toggle="'+esc(c.id)+'" data-active="'+c.active+'">'+(c.active?'Ocultar':'Publicar')+'</button><button data-delete="'+esc(c.id)+'">Excluir</button></div>').join(''):'<div style="padding:25px;text-align:center;color:var(--muted);font-size:13px">Ainda não há veículos. Clique em “Novo veículo” para cadastrar o primeiro.</div>')+'</div>';
+      let all=[];
+      try{const result=await apiRequest('/api/admin/vehicles');all=result.vehicles||[];}
+      catch(err){if(err.message==='Não autorizado'){user=null;return openAdmin()}$('adminContent').innerHTML=adminShell()+'<div class="notice">Não foi possível carregar os veículos: '+esc(err.message)+'. Confere as variáveis privadas da Vercel e a conexão com o Supabase.</div><button class="btn" id="adminLogout">Sair</button>';$('adminLogout').onclick=logout;return}
+      $('adminContent').innerHTML=adminShell()+'<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><span style="font-size:12px;color:var(--muted)">Sessão de administrador • '+all.length+' veículos cadastrados</span><div style="display:flex;gap:8px"><button class="btn" id="newVehicle">+ Novo veículo</button><button class="btn ghost" id="adminLogout">Sair</button></div></div><div id="vehicleFormWrap"></div><div class="admin-list">'+(all.length?all.map(c=>'<div class="admin-row"><img src="'+esc(photo(c))+'" alt=""><div class="grow"><strong>'+esc(c.brand)+' '+esc(c.model)+' • '+esc(c.year)+'</strong><small>'+fmt(c.price)+' • '+(c.active?'Publicado':'Oculto')+'</small></div><button data-edit="'+esc(c.id)+'">Editar</button><button data-toggle="'+esc(c.id)+'" data-active="'+c.active+'">'+(c.active?'Ocultar':'Publicar')+'</button><button data-delete="'+esc(c.id)+'">Excluir</button></div>').join(''):'<div style="padding:25px;text-align:center;color:var(--muted);font-size:13px">Ainda não há veículos. Clique em “Novo veículo” para cadastrar o primeiro.</div>')+'</div>';
       $('newVehicle').onclick=()=>showVehicleForm();$('adminLogout').onclick=logout;
       $('adminContent').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>showVehicleForm(all.find(c=>String(c.id)===b.dataset.edit)));
-      $('adminContent').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{const {error}=await db.from('vehicles').update({active:b.dataset.active!=='true'}).eq('id',b.dataset.toggle);if(error)toast(error.message);else{toast('Status atualizado.');renderAdmin();loadCars()}});
-      $('adminContent').querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('Tem certeza que deseja excluir este veículo?'))return;const {error}=await db.from('vehicles').delete().eq('id',b.dataset.delete);if(error)toast('Erro ao excluir: '+error.message);else{toast('Veículo excluído.');renderAdmin();loadCars()}});
+      $('adminContent').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{try{await apiRequest('/api/admin/vehicles',{method:'PATCH',body:JSON.stringify({id:b.dataset.toggle,active:b.dataset.active!=='true'})});toast('Status atualizado.');await renderAdmin();await loadCars()}catch(err){toast(err.message)}});
+      $('adminContent').querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('Tem certeza que deseja excluir este veículo?'))return;try{await apiRequest('/api/admin/vehicles',{method:'DELETE',body:JSON.stringify({id:b.dataset.delete})});toast('Veículo excluído.');await renderAdmin();await loadCars()}catch(err){toast('Erro ao excluir: '+err.message)}});
     }
     function showVehicleForm(c={}){
       editingId=c.id||null;photoFiles=[];
@@ -146,16 +156,21 @@
       $('vehicleForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,fd=new FormData(form),btn=$('saveVehicle'),status=$('saveStatus');btn.disabled=true;btn.textContent='Salvando...';status.textContent='Salvando dados e enviando fotos...';
         try{
           let photos=Array.isArray(c.photos)?c.photos.slice():[];
-          for(const f of photoFiles){if(f.size>8*1024*1024)throw new Error('Cada foto deve ter no máximo 8 MB.');const ext=(f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');const path=user.id+'/'+crypto.randomUUID()+'.'+ext;const up=await db.storage.from('vehicle-photos').upload(path,f,{upsert:false,contentType:f.type||'image/jpeg'});if(up.error)throw up.error;photos.push(db.storage.from('vehicle-photos').getPublicUrl(path).data.publicUrl)}
+          for(const f of photoFiles){
+            if(f.size>8*1024*1024)throw new Error('Cada foto deve ter no máximo 8 MB.');
+            if(!['image/jpeg','image/png','image/webp','image/avif'].includes(f.type))throw new Error('Use fotos JPG, PNG, WebP ou AVIF.');
+            const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');reader.onerror=()=>reject(new Error('Não foi possível ler uma foto.'));reader.readAsDataURL(f)});
+            const uploaded=await apiRequest('/api/admin/upload',{method:'POST',body:JSON.stringify({fileName:f.name,contentType:f.type,base64})});
+            photos.push(uploaded.url);
+          }
           if(!photos.length)throw new Error('Adicione pelo menos uma foto ao veículo.');
           const payload={brand:fd.get('brand').trim(),model:fd.get('model').trim(),version:fd.get('version').trim(),price:Number(fd.get('price')),year:Number(fd.get('year')),km:Number(fd.get('km')||0),fuel:fd.get('fuel'),transmission:fd.get('transmission'),color:fd.get('color').trim(),description:fd.get('description').trim(),active:fd.get('active')==='true',featured:fd.get('featured')==='on',photos};
-          const result=editingId?await db.from('vehicles').update(payload).eq('id',editingId):await db.from('vehicles').insert({...payload,created_by:user.id});
-          if(result.error)throw result.error;
+          await apiRequest('/api/admin/vehicles',{method:editingId?'PATCH':'POST',body:JSON.stringify(editingId?{...payload,id:editingId}:payload)});
           toast('Veículo salvo com sucesso!');await loadCars();await renderAdmin();
         }catch(err){console.error(err);status.textContent='Não foi possível salvar: '+(err.message||'erro desconhecido');toast('Confere os dados e a configuração de fotos.')}finally{const b=$('saveVehicle');if(b){b.disabled=false;b.textContent='Salvar veículo'}}
       };
     }
-    async function logout(){await db.auth.signOut();user=null;openAdmin()}
+    async function logout(){try{await apiRequest('/api/admin/logout',{method:'POST',body:'{}'})}catch(_){}user=null;openAdmin()}
     loadCars();
     if (isAdminRoute) { const closeButton = document.querySelector('[data-close="adminModal"]'); if (closeButton) closeButton.onclick=()=>window.location.assign('/'); openAdmin(); }
   })();
