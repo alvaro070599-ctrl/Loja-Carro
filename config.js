@@ -1,9 +1,11 @@
-// Configuração pública do site Loja K Motors.
-// Preencha com os dados do seu projeto Supabase (Project Settings > API).
-// A chave anon/publishable pode ficar no navegador se as políticas RLS do schema.sql estiverem ativas.
-// NUNCA coloque aqui a service_role key ou qualquer segredo privado.
+// Configuração local opcional para desenvolvimento fora da Vercel.
+// Em produção, as configurações públicas são carregadas por /api/config
+// a partir das Environment Variables do painel da Vercel.
+// NUNCA coloque service_role, senhas ou segredos neste arquivo.
 window.LOJA_K_CONFIG = {
   supabaseUrl: "",
   supabaseAnonKey: "",
-  whatsapp: "" // Exemplo: "5551999999999" (DDI + DDD + número, somente dígitos)
+  whatsapp: "",
+  storeName: "Sua Loja de Veículos",
+  storeSubtitle: "VEÍCULOS SELECIONADOS"
 };
