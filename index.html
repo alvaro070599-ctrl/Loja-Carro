@@ -157,7 +157,7 @@
     }
     async function logout(){await db.auth.signOut();user=null;openAdmin()}
     loadCars();
-    if (isAdminRoute) { const closeButton = document.querySelector('[data-close="adminModal"]'); if (closeButton) closeButton.style.display='none'; openAdmin(); }
+    if (isAdminRoute) { const closeButton = document.querySelector('[data-close="adminModal"]'); if (closeButton) closeButton.onclick=()=>window.location.assign('/'); openAdmin(); }
   })();
   </script>
 </body>
