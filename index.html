@@ -157,7 +157,7 @@
         try{
           let photos=Array.isArray(c.photos)?c.photos.slice():[];
           for(const f of photoFiles){
-            if(f.size>8*1024*1024)throw new Error('Cada foto deve ter no máximo 8 MB.');
+            if(f.size>8*1024*1024)throw new Error('Cada foto deve ter no máximo 3 MB.');
             if(!['image/jpeg','image/png','image/webp','image/avif'].includes(f.type))throw new Error('Use fotos JPG, PNG, WebP ou AVIF.');
             const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');reader.onerror=()=>reject(new Error('Não foi possível ler uma foto.'));reader.readAsDataURL(f)});
             const uploaded=await apiRequest('/api/admin/upload',{method:'POST',body:JSON.stringify({fileName:f.name,contentType:f.type,base64})});
