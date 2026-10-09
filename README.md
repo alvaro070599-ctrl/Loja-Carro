@@ -1,48 +1,49 @@
 # Loja de veículos — Vercel + Supabase
 
-Site estático em HTML, CSS e JavaScript, hospedado na Vercel. O Supabase fornece autenticação, banco de dados e armazenamento das fotos.
+Site estático HTML/CSS/JavaScript hospedado na Vercel. O Supabase fornece banco de dados e armazenamento de fotos. O painel administrativo usa uma senha definida na Vercel, sem exigir e-mail ou usuário do Supabase.
 
-## Variáveis de ambiente da Vercel
+## Variáveis de ambiente na Vercel
 
-No painel da Vercel, abra **Project → Settings → Environment Variables** e crie estas variáveis. Marque **Production** e, se quiser testar versões de prévia, também **Preview**.
+Em **Project → Settings → Environment Variables**, configure:
 
-| Nome | Valor |
-|---|---|
-| `STORE_NAME` | Nome comercial exibido no site (ex.: Minha Loja Veículos) |
-| `STORE_SUBTITLE` | Texto curto abaixo do nome (ex.: Seminovos selecionados) |
-| `WHATSAPP_NUMBER` | DDI + DDD + telefone, somente números (ex.: 5551999999999) |
-| `SUPABASE_URL` | Project URL do Supabase |
-| `SUPABASE_PUBLISHABLE_KEY` | Chave publicável do Supabase. Se o projeto fornecer a chave anon legada, use `SUPABASE_ANON_KEY` no lugar. |
+| Nome | Valor | Sensitive? |
+|---|---|---|
+| `STORE_NAME` | Nome da loja | Não |
+| `STORE_SUBTITLE` | Texto abaixo do nome | Não |
+| `WHATSAPP_NUMBER` | DDI + DDD + telefone, só números | Não |
+| `SUPABASE_URL` | Project URL do Supabase | Não |
+| `SUPABASE_PUBLISHABLE_KEY` | Chave publicável (ou use `SUPABASE_ANON_KEY`) para leitura pública do catálogo | Pública |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta de servidor do Supabase | **Sim, secreta** |
+| `ADMIN_PASSWORD` | A senha que tu escolher para entrar em `/admin` | **Sim, secreta** |
+| `ADMIN_SESSION_SECRET` | Segredo aleatório forte para assinar a sessão; usa pelo menos 32 bytes aleatórios | **Sim, secreta** |
 
-Não crie as duas variáveis de chave ao mesmo tempo, a menos que saiba qual delas o projeto está usando. O endpoint `/api/config` retorna somente valores públicos necessários ao navegador. **Nunca** cadastre `service_role`, chaves secretas ou senha do banco para exposição no frontend.
+Marca **Production**; marca **Preview** também se fores testar em previews. Nunca use `SUPABASE_SERVICE_ROLE_KEY` em código de navegador ou em variáveis com prefixo público. O endpoint público `/api/config` retorna apenas o nome da loja, WhatsApp, URL e chave publicável — nunca a senha administrativa ou a chave de serviço.
 
-Depois de salvar ou alterar variáveis, faça um novo deploy em **Deployments → Redeploy** ou envie um novo commit.
+Gera um segredo de sessão longo e aleatório; não reutilizes a senha administrativa para `ADMIN_SESSION_SECRET`. Depois de criar/alterar variáveis, faz um novo deploy.
 
 ## Supabase: banco e fotos
 
-1. Crie um projeto Supabase.
-2. No **SQL Editor**, execute todo o conteúdo de `supabase/schema.sql`.
-3. Em **Authentication → Users**, crie o usuário administrador.
-4. Copie a Project URL e a chave publicável (ou anon legada) para as variáveis da Vercel.
-5. Use o mesmo usuário administrador para gerenciar os anúncios; as políticas iniciais limitam a gestão ao usuário que criou cada veículo.
+1. Cria um projeto Supabase.
+2. Executa `supabase/schema.sql` no SQL Editor. Isso cria a tabela `vehicles` e o bucket público `vehicle-photos`.
+3. Em Project Settings / API Keys, copia a URL, a chave publicável e a chave de serviço para as variáveis correspondentes na Vercel.
+4. O site público lê apenas veículos ativos usando a chave pública e as políticas RLS.
+5. As funções da Vercel usam a chave de serviço exclusivamente no servidor para validar a sessão e gerir anúncios/fotos. Não é necessário criar usuário administrador em Supabase Authentication.
 
-O projeto usa o **Supabase Storage** no bucket público `vehicle-photos` para as imagens. Não precisa configurar Vercel Blob: usar o armazenamento do Supabase mantém fotos, autenticação e banco de dados no mesmo serviço. O bucket e as políticas são criados pelo SQL, caso as permissões permitam executar o script.
+## Vercel
 
-## Vercel: deploy
+- Conecta o repositório `alvaro070599-ctrl/Loja-Carro`, branch `main`.
+- É um site estático sem build command.
+- `/admin` abre a página de login e pede somente a senha.
+- A senha é validada no servidor. A sessão usa cookie HttpOnly, Secure e SameSite=Strict.
+- As rotas `/api/admin/*` permitem gerir anúncios e enviar fotos somente com sessão válida.
+- As fotos são guardadas no Supabase Storage; não é necessário Vercel Blob.
 
-- Conecte o repositório `alvaro070599-ctrl/Loja-Carro` e a branch `main`.
-- Como a página usa HTML/CSS/JS sem compilação, não é necessário comando de build nem Output Directory personalizado; mantenha a configuração estática padrão.
-- O arquivo `api/config.js` é uma função Vercel que fornece as variáveis públicas em tempo de execução.
-- O arquivo `vercel.json` faz `/admin` carregar a aplicação; o painel administrativo não aparece como botão na página inicial.
-- Depois de publicar, abra `https://SEU-DOMINIO/admin` para entrar no painel.
+## Testes
 
-## Cadastro e teste
+1. Visita `/admin` e entra com `ADMIN_PASSWORD`.
+2. Cadastra um carro com fotos, salva e confirma que aparece no catálogo.
+3. Testa editar, ocultar, publicar, excluir e sair.
+4. Atualiza a página para confirmar que os anúncios continuam salvos.
+5. Testa o site no celular e os links do WhatsApp.
 
-1. Acesse `/admin`, entre com o usuário criado no Supabase.
-2. Cadastre um veículo com pelo menos uma foto.
-3. Confirme que aparece no catálogo público.
-4. Atualize a página para confirmar que o cadastro persiste.
-5. Teste editar, ocultar, publicar e excluir um veículo.
-6. Teste o site no celular e o contato por WhatsApp.
-
-Não cadastre anúncios fictícios como estoque real. Sem configuração do Supabase, o catálogo permanece vazio e o painel informa o que falta configurar.
+A sessão dura 8 horas. Usa uma senha forte e não a compartilha. Para maior proteção em produção, adiciona limitação de tentativas de login/WAF na Vercel.
