@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
     const allowed = ['image/jpeg','image/png','image/webp','image/avif'];
     if (!allowed.includes(contentType) || typeof base64 !== 'string') return res.status(400).json({ error: 'Formato de imagem inválido.' });
     const bytes = Buffer.from(base64, 'base64');
-    if (!bytes.length || bytes.length > 8 * 1024 * 1024) return res.status(413).json({ error: 'Cada foto deve ter no máximo 8 MB.' });
+    if (!bytes.length || bytes.length > 3 * 1024 * 1024) return res.status(413).json({ error: 'Cada foto deve ter no máximo 8 MB.' });
     const ext = ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/avif':'avif'})[contentType];
     const name = crypto.randomUUID() + '.' + ext;
     const {url,key} = config();
