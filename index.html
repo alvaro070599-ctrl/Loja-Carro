@@ -65,8 +65,8 @@
     } catch (error) {
       console.warn('Não foi possível carregar a configuração da Vercel; usando configuração local.', error);
     }
-    const storeName = String(cfg.storeName || 'Sua Loja de Veículos');
-    const storeSubtitle = String(cfg.storeSubtitle || 'VEÍCULOS SELECIONADOS');
+    const storeName = String(cfg.storeName || 'PV Multimarcas');
+    const storeSubtitle = String(cfg.storeSubtitle || 'MULTIMARCAS');
     const isAdminRoute = /^\/admin\/?$/.test(window.location.pathname);
     if (isAdminRoute) document.body.classList.add('admin-route');
     const hasSupabase = !!(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
