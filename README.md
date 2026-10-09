@@ -1,48 +1,48 @@
-# Loja K Motors
+# Loja de veículos — Vercel + Supabase
 
-Site responsivo para catálogo de veículos, com filtros, detalhes de cada carro e painel de administração.
+Site estático em HTML, CSS e JavaScript, hospedado na Vercel. O Supabase fornece autenticação, banco de dados e armazenamento das fotos.
 
-## O que já está incluído
-- Página inicial responsiva e catálogo com busca por marca/modelo/versão.
-- Filtros por marca, ano mínimo e preço máximo.
-- Página/modal de detalhes, informações do veículo e contato por WhatsApp.
-- Painel de administração com login via Supabase Auth.
-- Cadastro, edição, publicação/ocultação e exclusão de veículos.
-- Upload de várias fotos por veículo para o Supabase Storage.
-- Banco de dados com políticas de acesso (RLS) no arquivo `supabase/schema.sql`.
-- Modo de demonstração sem credenciais (os veículos mostrados são ilustrativos e os cadastros não ficam salvos).
+## Variáveis de ambiente da Vercel
 
-## Estrutura
-- `index.html` — site e interface do catálogo/painel.
-- `config.js` — URL/chave pública do Supabase e WhatsApp da loja.
-- `supabase/schema.sql` — tabelas, políticas de segurança e bucket de fotos.
+No painel da Vercel, abra **Project → Settings → Environment Variables** e crie estas variáveis. Marque **Production** e, se quiser testar versões de prévia, também **Preview**.
 
-## Como colocar no ar
+| Nome | Valor |
+|---|---|
+| `STORE_NAME` | Nome comercial exibido no site (ex.: Minha Loja Veículos) |
+| `STORE_SUBTITLE` | Texto curto abaixo do nome (ex.: Seminovos selecionados) |
+| `WHATSAPP_NUMBER` | DDI + DDD + telefone, somente números (ex.: 5551999999999) |
+| `SUPABASE_URL` | Project URL do Supabase |
+| `SUPABASE_PUBLISHABLE_KEY` | Chave publicável do Supabase. Se o projeto fornecer a chave anon legada, use `SUPABASE_ANON_KEY` no lugar. |
 
-### 1. Criar o projeto Supabase
-1. Entre em https://supabase.com/ e crie um projeto.
-2. No projeto, abra **SQL Editor**, crie uma consulta, cole todo o conteúdo de `supabase/schema.sql` e execute.
-3. Abra **Project Settings → API** (ou **Connect**) e copie a Project URL e a chave pública anon/publishable.
-4. No GitHub, abra `config.js`, clique no lápis e preencha `supabaseUrl` e `supabaseAnonKey`. Preencha também `whatsapp` com DDI + DDD + número, somente dígitos, por exemplo `5551999999999`.
-5. Em **Authentication → Users**, crie o usuário que será administrador. Use o mesmo usuário para cadastrar os veículos, porque as políticas iniciais permitem que cada usuário gerencie os veículos que cadastrou.
+Não crie as duas variáveis de chave ao mesmo tempo, a menos que saiba qual delas o projeto está usando. O endpoint `/api/config` retorna somente valores públicos necessários ao navegador. **Nunca** cadastre `service_role`, chaves secretas ou senha do banco para exposição no frontend.
 
-> Nunca use a chave `service_role` no navegador. Somente a chave pública anon/publishable deve estar em `config.js`, com RLS ativado.
+Depois de salvar ou alterar variáveis, faça um novo deploy em **Deployments → Redeploy** ou envie um novo commit.
 
-### 2. Publicar o site
-Opção simples: **Vercel**
-1. Entre em https://vercel.com/ e escolha **Add New → Project**.
-2. Importe o repositório GitHub `alvaro070599-ctrl/Loja-Carro`.
-3. Como o site é estático, não precisa de comando de build nem pasta de saída: deixe os campos de build vazios ou use a configuração estática padrão.
-4. Depois de publicar, a Vercel vai fornecer um endereço público. Cada novo commit na branch `main` será publicado automaticamente.
+## Supabase: banco e fotos
 
-Também pode ser publicado pelo GitHub Pages; a Vercel costuma ser mais simples para começar.
+1. Crie um projeto Supabase.
+2. No **SQL Editor**, execute todo o conteúdo de `supabase/schema.sql`.
+3. Em **Authentication → Users**, crie o usuário administrador.
+4. Copie a Project URL e a chave publicável (ou anon legada) para as variáveis da Vercel.
+5. Use o mesmo usuário administrador para gerenciar os anúncios; as políticas iniciais limitam a gestão ao usuário que criou cada veículo.
 
-## Antes de usar com clientes
-- Substitua os carros e fotos ilustrativos por veículos reais cadastrados pela administração.
-- Configure o WhatsApp correto em `config.js`.
-- Teste login, cadastro, edição, upload e publicação com um veículo de teste.
-- Confirme os dados, preços e disponibilidade antes de anunciar.
-- A política de administração inicial é intencionalmente simples para uma única conta administradora. Para equipe com vários usuários, vale implementar uma tabela de administradores/roles.
+O projeto usa o **Supabase Storage** no bucket público `vehicle-photos` para as imagens. Não precisa configurar Vercel Blob: usar o armazenamento do Supabase mantém fotos, autenticação e banco de dados no mesmo serviço. O bucket e as políticas são criados pelo SQL, caso as permissões permitam executar o script.
 
-## Observações
-O projeto usa HTML/CSS/JavaScript sem etapa de build. O Supabase é necessário para persistência compartilhada de veículos, autenticação do painel e armazenamento permanente de fotos. Sem a configuração, o site abre em modo de demonstração e mostra dados fictícios de exemplo.
+## Vercel: deploy
+
+- Conecte o repositório `alvaro070599-ctrl/Loja-Carro` e a branch `main`.
+- Como a página usa HTML/CSS/JS sem compilação, não é necessário comando de build nem Output Directory personalizado; mantenha a configuração estática padrão.
+- O arquivo `api/config.js` é uma função Vercel que fornece as variáveis públicas em tempo de execução.
+- O arquivo `vercel.json` faz `/admin` carregar a aplicação; o painel administrativo não aparece como botão na página inicial.
+- Depois de publicar, abra `https://SEU-DOMINIO/admin` para entrar no painel.
+
+## Cadastro e teste
+
+1. Acesse `/admin`, entre com o usuário criado no Supabase.
+2. Cadastre um veículo com pelo menos uma foto.
+3. Confirme que aparece no catálogo público.
+4. Atualize a página para confirmar que o cadastro persiste.
+5. Teste editar, ocultar, publicar e excluir um veículo.
+6. Teste o site no celular e o contato por WhatsApp.
+
+Não cadastre anúncios fictícios como estoque real. Sem configuração do Supabase, o catálogo permanece vazio e o painel informa o que falta configurar.
