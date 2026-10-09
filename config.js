@@ -6,6 +6,6 @@ window.LOJA_K_CONFIG = {
   supabaseUrl: "",
   supabaseAnonKey: "",
   whatsapp: "",
-  storeName: "Sua Loja de Veículos",
-  storeSubtitle: "VEÍCULOS SELECIONADOS"
+  storeName: "PV Multimarcas",
+  storeSubtitle: "MULTIMARCAS"
 };
